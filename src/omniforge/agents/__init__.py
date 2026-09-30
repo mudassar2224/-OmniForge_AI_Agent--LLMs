@@ -220,6 +220,36 @@ Key behaviors:
 """
 
 
+async def _stitch_invoke(llm, messages: list, max_loops: int = 3):
+    from langchain_core.messages import AIMessage
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    current_msgs = list(messages)
+    full_content = ""
+    last_response = None
+    
+    for i in range(max_loops):
+        response = await llm.ainvoke(current_msgs)
+        last_response = response
+        
+        content_str = response.content if isinstance(response.content, str) else str(response.content)
+        full_content += content_str
+        
+        metadata = response.response_metadata or {}
+        reason = str(metadata.get("finish_reason") or metadata.get("stop_reason") or "").lower()
+        
+        if reason not in ["length", "max_tokens", "max_length"]:
+            break
+            
+        logger.warning(f"Output truncated (reason='{reason}'). Stitching continuation (loop {i+1}/{max_loops})...")
+        current_msgs.append(AIMessage(content=content_str))
+        
+    if last_response:
+        last_response.content = full_content
+    return last_response
+
+
 async def general_node(state: dict, config: RunnableConfig | None = None) -> dict:
     """General conversation agent."""
     from omniforge.config.models import ModelRegistry
@@ -247,7 +277,7 @@ async def general_node(state: dict, config: RunnableConfig | None = None) -> dic
         llm = model_registry.get_llm()
         trimmed_msgs = _trim_messages(messages, max_recent=4)
         all_messages = [SystemMessage(content=system)] + trimmed_msgs
-        response = await llm.ainvoke(all_messages)
+        response = await _stitch_invoke(llm, all_messages)
         events.append(emitter.emit_complete("Response ready"))
         content = response.content
         if isinstance(content, list):

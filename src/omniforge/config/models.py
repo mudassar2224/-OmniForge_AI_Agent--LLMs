@@ -44,21 +44,7 @@ class ModelRegistry:
             logger.warning("No OpenRouter API keys found.")
 
     def _wrap_with_length_check(self, llm: Runnable) -> Runnable:
-        """Wrap an LLM to log a warning if it gets cut off due to length."""
-        from langchain_core.runnables import RunnableLambda
-        from langchain_core.messages import BaseMessage
-        
-        def _check_length(response: BaseMessage) -> BaseMessage:
-            metadata = response.response_metadata or {}
-            reason = str(metadata.get("finish_reason") or metadata.get("stop_reason") or "").lower()
-            if reason in ["length", "max_tokens", "max_length"]:
-                logger.warning(f"Model output truncated (finish_reason='{reason}').")
-                # Append a note so the agent/user knows it was cut off
-                if hasattr(response, "content") and isinstance(response.content, str):
-                    response.content += "\n\n[Warning: Output truncated due to length limits]"
-            return response
-            
-        return llm | RunnableLambda(_check_length)
+        return llm
 
     def _create_groq_llms(self, model_name: str, **kwargs) -> list[Runnable]:
         """Create a list of ChatGroq instances for each available key."""
