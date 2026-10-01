@@ -176,7 +176,7 @@ async def research_node(state: dict, config: RunnableConfig | None = None) -> di
     )
 
     try:
-        response = await llm.ainvoke([
+        response = await _stitch_invoke(llm, [
             SystemMessage(content=system),
             HumanMessage(content=synthesis_prompt),
         ])
@@ -212,7 +212,7 @@ You provide thoughtful, well-structured answers. You are honest about uncertaint
 Key behaviors:
 - Be concise but thorough. NEVER exceed 600 words per response.
 - If providing a list, roadmap, or resources, keep it highly summarized to fit within strict length limits.
-- ALWAYS provide direct, clickable URLs for any resources, tools, or papers you mention.
+- NEVER hallucinate URLs or YouTube links. If you recommend a resource but do not know the exact, verified URL, just provide the name. Only provide links if you are 100% certain they are valid.
 - Use the memory context to inform your answers, but DO NOT awkwardly bring up past topics (like what the user was studying) when they just say "hi" or "hello". Keep greetings natural and generic.
 - Use markdown formatting.
 - Include code blocks when relevant.
